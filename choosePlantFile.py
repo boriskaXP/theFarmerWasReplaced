@@ -1,5 +1,5 @@
 from autoUnlock import currentAmounts, minRequiredResources, droneIntervals, checkIfCanUnlock
-from wayToGoFile import wayToGo
+from wayToGoFile import wayToGo, resetPosition
 from mappingMaze_v3 import searchMaze_v3
 
 def tryHarvest():
@@ -10,76 +10,110 @@ def checkWater(water):
 	if (get_water() < water) and (num_items(Items.Water) > 100000):
 		use_item(Items.Water)
 
+def collectAllSunFlowers(interval, currentWay, current, drones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Sunflower_Hat)
+	done = False
+	counter = 0
+	resetPosition(interval, current)
+	while not done:
+		counter += 1
+		harvest()
+		currentWay, current = wayToGo(interval, currentWay, current)
+		done = (counter >= (interval[3] - interval[2] + 1) * (interval[1] - interval[0] + 1))
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
+
+def callDronesToCollectAllSunFlowers(interval, currentWay, current, drones, mainDrone):
+	def work():
+		collectAllSunFlowers(interval, currentWay, current, drones, mainDrone)
+
+	return spawn_drone(work)
+	
+
 def checkResources(current, required, fieldWidth, fieldHeight, numDrones):
-	if (get_pos_x() == 0) and (get_pos_y() == 0):
-		checkIfCanUnlock(current)
-		current = currentAmounts(True, current)
-		required, item = minRequiredResources(True, current, required)
-		fieldWidth = get_world_size()
-		fieldHeight = get_world_size()
-		numDrones = droneIntervals(fieldWidth, fieldHeight)
+	checkIfCanUnlock(current)
+	current = currentAmounts(True, current)
+	required, item = minRequiredResources(True, current, required)
+	fieldWidth = get_world_size()
+	fieldHeight = get_world_size()
+	numDrones = droneIntervals(False, fieldWidth, fieldHeight)
 	return current, required, fieldWidth, fieldHeight, numDrones, item
 
-def plantWork(current, required, fieldWidth, fieldHeight, interval, currentWay, item, drones):
+def plantWork(current, required, fieldWidth, fieldHeight, interval, currentWay, item, drones, numDrones, mainDrone):
 	if len(drones) == 0:
 		who = 'Main drone '
 	else:
 		who = str(drones[len(drones) - 1])
 	if item == Items.Hay:
 		quick_print(who, ': Planting Hay!')
-		plantHay(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantHay(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Wood:
 		quick_print(who, ': Planting Wood!')
-		plantWood(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantWood(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Carrot:
 		quick_print(who, ': Planting Carrot!')
-		plantCarrot(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantCarrot(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Pumpkin:
 		quick_print(who, ': Planting Pumpkin!')
-		plantPumpkin(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantPumpkin(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Cactus:
 		quick_print(who, ': Planting Cactus!')
-		plantCactus(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantCactus(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Weird_Substance:
 		quick_print(who, ': Planting WeirdSubstance!')
-		plantWeirdSubstance(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantWeirdSubstance(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Gold:
 		quick_print(who, ': Searching Gold!')
-		plantGold(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantGold(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 	elif item == Items.Power:
 		quick_print(who, ': Planting SunFlowers!')
-		plantSunFlower(current, required, fieldWidth, fieldHeight, interval, currentWay, drones)
+		plantSunFlower(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone)
 
-def dronePlantWork(plantWork, current, required, fieldWidth, fieldHeight, interval, currentWay, id, drones):
+def dronePlantWork(plantWork, current, required, fieldWidth, fieldHeight, interval, currentWay, id, drones, numDrones):
 	def work():
-		plantWork(current, required, fieldWidth, fieldHeight, interval, currentWay, id, drones)
+		plantWork(current, required, fieldWidth, fieldHeight, interval, currentWay, id, drones, numDrones, False)
 	return spawn_drone(work)
 
 def plantSmth(current, required, fieldWidth, fieldHeight, numDrones, item):
 	currentWay = [North, East]
 	drones = []
-	counter = 0
 	quick_print('')
-	if (item != Items.Gold):	#Excluse Maze
+	if (item != Items.Gold):	#Exclude Maze
 		for i in range(len(numDrones) - 1):
-			drones.append(dronePlantWork(plantWork, current, required, fieldWidth, fieldHeight, numDrones[i + 1], currentWay, item, drones))
+			drones.append(dronePlantWork(plantWork, current, required, fieldWidth, fieldHeight, numDrones[i + 1], currentWay, item, drones, numDrones))
 
-	plantWork(current, required, fieldWidth, fieldHeight, numDrones[0], currentWay, item, drones)
+	plantWork(current, required, fieldWidth, fieldHeight, numDrones[0], currentWay, item, drones, numDrones, True)
 
 	return current, required, fieldWidth, fieldHeight	
 
-def plantHay(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantHay(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Straw_Hat)
 	done = False
+	resetPosition(interval, current)
 	while not done:
 		tryHarvest()
 		plant(Entities.Grass)
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Hay] > required[Items.Hay]
-	for drone in drones:
-		wait_for(drone)
+		done = (current[Items.Hay] > required[Items.Hay]) or (current[Items.Power] < 1000)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 		
-def plantWood(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantWood(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Tree_Hat)
 	done = False
+	done = False
+	resetPosition(interval, current)
 	while not done:
 		tryHarvest()
 		checkWater(0.5)
@@ -88,12 +122,19 @@ def plantWood(current, required, fieldWidth, fieldHeight, interval, currentWay, 
 		else:
 			plant(Entities.Bush)
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Wood] > required[Items.Wood]
-	for drone in drones:
-		wait_for(drone)
+		done = (current[Items.Wood] > required[Items.Wood]) or (current[Items.Power] < 1000)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 		
-def plantCarrot(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantCarrot(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Carrot_Hat)
 	done = False
+	done = False
+	resetPosition(interval, current)
 	while not done:
 		tryHarvest()
 		checkWater(0.5)
@@ -101,25 +142,46 @@ def plantCarrot(current, required, fieldWidth, fieldHeight, interval, currentWay
 			till()
 		plant(Entities.Carrot)
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Carrot] > required[Items.Carrot]
-	for drone in drones:
-		wait_for(drone)
+		done = (current[Items.Carrot] > required[Items.Carrot]) or (current[Items.Power] < 1000)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 
-def plantPumpkin(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantPumpkin(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Pumpkin_Hat)
 	done = False
+	done = False
+	counter = 0
+	resetPosition(interval, current)
 	while not done:
-		tryHarvest()
-		checkWater(0.5)
+		if (get_pos_x() == interval[0]) and (get_pos_y() == interval[2]):
+			counter = 0
+		if get_entity_type() != Entities.Pumpkin:
+			harvest()
 		if get_ground_type() != Grounds.Soil:
 			till()
-		plant(Entities.Pumpkin)
+		if not can_harvest():
+			plant(Entities.Pumpkin)
+		else:
+			counter += 1
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Pumpkin] > required[Items.Pumpkin]
-	for drone in drones:
-		wait_for(drone)
+		done = (counter >= (interval[3] - interval[2] + 1) * (interval[1] - interval[0] + 1))
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
+		harvest()
 		
-def plantCactus(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantCactus(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Cactus_Hat)
 	done = False
+	done = False
+	resetPosition(interval, current)
 	while not done:
 		tryHarvest()
 		checkWater(0.5)
@@ -127,23 +189,37 @@ def plantCactus(current, required, fieldWidth, fieldHeight, interval, currentWay
 			till()
 		plant(Entities.Cactus)
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Cactus] > required[Items.Cactus]
-	for drone in drones:
-		wait_for(drone)
+		done = (current[Items.Cactus] > required[Items.Cactus]) or (current[Items.Power] < 1000)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 
-def plantWeirdSubstance(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantWeirdSubstance(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Purple_Hat)
 	done = False
+	done = False
+	resetPosition(interval, current)
 	while not done:
 		tryHarvest()
 		plant(Entities.Grass)
 		use_item(Items.Fertilizer)
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Gold] > required[Items.Gold]
-	for drone in drones:
-		wait_for(drone)
+		done = (current[Items.Gold] > required[Items.Gold]) or (current[Items.Power] < 1000)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 
-def plantGold(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantGold(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Gold_Hat)
 	done = False
+	done = False
+	resetPosition(interval, current)
 	while not done:
 		randomX = random() * 7
 		randomY = random() * 7
@@ -158,24 +234,61 @@ def plantGold(current, required, fieldWidth, fieldHeight, interval, currentWay, 
 		use_item(Items.Weird_Substance, substance)
 		searchMaze_v3(300, fieldWidth, fieldHeight)
 		done = current[Items.Weird_Substance] > required[Items.Weird_Substance]
-	for drone in drones:
-		wait_for(drone)
+	if mainDrone:
+		for drone in drones:
+			wait_for(drone)
 		
-def plantSunFlower(current, required, fieldWidth, fieldHeight, interval, currentWay, drones):
+def plantSunFlower(current, required, fieldWidth, fieldHeight, interval, currentWay, drones, numDrones, mainDrone):
+	if mainDrone:
+		change_hat(Hats.Wizard_Hat)
+	else:
+		change_hat(Hats.Sunflower_Hat)
 	done = False
+	quality = 16
+	done = False
+	counter = 0
+	firstRun = True
+	resetPosition(interval, current)
 	while not done:
-		tryHarvest()
+		if (get_pos_x() == interval[0]) and (get_pos_y() == interval[2]):
+			counter = 0
 		if get_ground_type() != Grounds.Soil:
 			till()
 		plant(Entities.Sunflower)
+		if get_entity_type() == Entities.Sunflower:
+			if measure() < quality:
+				if not firstRun:
+					harvest()
+				plant(Entities.Sunflower)
+				checkWater(0.5)
+			else:
+				counter += 1
+		
 		currentWay, current = wayToGo(interval, currentWay, current)
-		done = current[Items.Power] > required[Items.Power]
-	for drone in drones:
-		wait_for(drone)
+		firstRun = False
+		if quality < 16:
+			done = (counter >= (interval[3] - interval[2] + 1) * (interval[1] - interval[0] + 1))
+		else:
+			done = current[Items.Power] > required[Items.Power]
+	if mainDrone:
+		if quality < 16:
+			for drone in drones:
+				wait_for(drone)
+			drones = []
+			for i in range(len(numDrones) - 1):
+				drones.append(callDronesToCollectAllSunFlowers(numDrones[i + 1], currentWay, current, drones, mainDrone))
+			collectAllSunFlowers(numDrones[0], currentWay, current, drones, mainDrone)
+		else:
+			for drone in drones:
+				wait_for(drone)
 
 def choosePlant(current, required, fieldWidth, fieldHeight):
 	numDrones = [[0, 15, 0, 15]]
 	current, required, fieldWidth, fieldHeight, numDrones, item = checkResources(current, required, fieldWidth, fieldHeight, numDrones)
-	current, required, fieldWidth, fieldHeight = plantSmth(current, required, fieldWidth, fieldHeight, numDrones, item)
+	allDone = False
+	if item != None:
+		current, required, fieldWidth, fieldHeight = plantSmth(current, required, fieldWidth, fieldHeight, numDrones, item)
+	else:
+		allDone = True
 		
-	return current, required, fieldWidth, fieldHeight
+	return current, required, fieldWidth, fieldHeight, allDone
