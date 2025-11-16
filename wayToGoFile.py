@@ -28,6 +28,7 @@ def wayToGo(interval, currentWay, current):
 	moveDone = False
 	if (x < x0) or (x > x1) or (y < y0) or (y > y1):
 		current = resetPosition(interval, current)
+		moveDone = True
 
 	x = get_pos_x()
 	y = get_pos_y()
