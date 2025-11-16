@@ -26,7 +26,7 @@ required[Items.Pumpkin] = 100000			#Pumpkin
 required[Items.Cactus] = 100000				#Cactus
 required[Items.Weird_Substance] = 100000	#WeirdSubstance
 required[Items.Gold] = 100000				#Gold
-required[Items.Power] = 0				#Power
+required[Items.Power] = 100000				#Power
 
 def doHarvest():
 	while can_harvest():
@@ -37,8 +37,9 @@ def main():
 	global required
 	global fieldWidth
 	global fieldHeight
-	while True:
-		current, required, fieldWidth, fieldHeight = choosePlant(current, required, fieldWidth, fieldHeight)
+	allDone = False
+	while not allDone:
+		current, required, fieldWidth, fieldHeight, allDone = choosePlant(current, required, fieldWidth, fieldHeight)
 
 if __name__ == "__main__":
 	while get_pos_x() > 0:
